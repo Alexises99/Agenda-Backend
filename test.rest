@@ -1,1 +1,26 @@
-DELETE  http://localhost:3001/api/contacts/0
+DELETE  http://localhost:3001/api/contacts/60818a3900819126c06b5bbf
+
+###
+GET  http://localhost:3001/api/contacts
+
+###
+GET http://localhost:3001/api/contacts/60818a9463ae7a4eb499eaa0
+
+###
+POST http://localhost:3001/api/contacts
+Content-Type: application/json
+
+{
+    "name": "Alex",
+    "number": 123456
+}
+
+###
+PUT http://localhost:3001/api/contacts/608198e89eea1031a8690706
+Content-Type: application/json
+
+{
+    "name": "Ubuntinininin",
+    "number": 9999999
+}
+

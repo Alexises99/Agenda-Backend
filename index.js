@@ -1,22 +1,19 @@
+
+require('dotenv').config()
+require('./mongo');
+
 const express = require('express')
 const cors = require("cors")
 const app = express()
+const Contact = require("./models/Contact");
+const { response } = require('express');
+const notFound = require('./middlewares/notfound')
+const handleErrors = require('./middlewares/handleError')
 
 app.use(cors())
 app.use(express.json())
 
-let contacts = [
-    {
-        id: 0,
-        name:"Arton",
-        number:"123"
-    },
-    {
-        id: 1,
-        name:"Alex",
-        number:"123123"
-    }
-]
+
 
 const generateId = () => {
     const maxId = contacts.length > 0
@@ -35,19 +32,27 @@ app.get('/api/info', (request,response) => {
 })
 
 app.get('/api/contacts', (request, response) => {
-    response.status(200).json(contacts)
+    Contact.find({}).then(notes => {
+        response.json(notes)
+    })
 })
 
-app.get('/api/contacts/:id', (request, response) => {
-    const id = Number(request.params.id)
-    const contact = contacts.find(contact => contact.id === id)
-    response.status(200).json(contact)
+app.get('/api/contacts/:id', (request, response,next) => {
+    const {id} = request.params
+    Contact.findById(id).then(contact => {
+        if(contact) {
+            response.status(200).json(contact)
+        } else {
+            response.status(404).end()
+        }
+        
+    }).catch(err => {
+        next(err)
+    })
 })
 
 app.post('/api/contacts', (request, response) => {
     const body = request.body
-    console.log(body);
-    
     if(!body.name) {
         return response.status(400).json({
             error: 'missing name'
@@ -58,32 +63,58 @@ app.post('/api/contacts', (request, response) => {
             error: 'missing number'
         })
     }
-    if (contacts.filter(contact => contact.name === body.name).length !== 0 ) {
+    let repeat = []
+    Contact.find({}).then(contacts => {
+         repeat = contacts.filter(contact => contact.name === body.name)
+    })
+
+     if(repeat.length > 0) {
         return response.status(400).json({
             error: 'name must be unique'
         })
     }
     
-    const contact = {
-        id: generateId(),
+    const newContact = new Contact({
         name: body.name,
         number: body.number,
+    })
+    
+    newContact.save().then(savedContact => {
+        response.status(201).json(savedContact);
+    })
+    
+})
+
+app.delete('/api/contacts/:id', (request, response,next) => {
+    const {id} = request.params
+    
+    Contact.findByIdAndRemove(id).then(result => {
+        response.status(204).end()
+    }).catch(err => next(err))
+})
+
+app.put('/api/contacts/:id', (request,response,next) => {
+    const {id} = request.params
+    const contact = request.body
+    const newNoteInfo = {
+        name: contact.name,
+        number: contact.number
     }
-    
-    contacts = contacts.concat(contact);
-    console.log(contacts);
-    response.status(201).json(contact);
+    Contact.findByIdAndUpdate(id,newNoteInfo, {new:true})
+        .then(result =>  {
+            response.status(200).json(result)
+        }).catch(err => {
+            next(err)
+        })
 })
 
-app.delete('/api/contacts/:id', (request, response) => {
-    const id = Number(request.params.id)
-    
-    console.log(id)
-    contacts = contacts.filter(contact => contact.id !== id)
-    response.status(204).json({deleted:`deleted ${id}`})
-})
 
-const PORT = process.env.PORT || 3001
+app.use(notFound)
+app.use(handleErrors)
+
+
+
+const PORT = process.env.PORT
 
 app.listen(PORT,() => {
     console.log("Server running in port 3001")
